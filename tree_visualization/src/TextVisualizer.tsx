@@ -48,40 +48,45 @@ const LEVEL_TO_NAME : LEVEL_TO_NAME_TYPE = {
 
 export interface StatefulBlendProps {
   formatted_text: string;
+  nodes_to_show : string[];
   tree_data: TreeData[];
   update_nodes: (nodes: string[]) => void;
 };
 
-function perform_dfs(current_node : TreeData, paragraph: string, all_tags : AnnotateBlendTag[]) {
-  // Extract the data
-  let parts = current_node.id.split("_");
-  let level = parseInt(parts[0]);
-  let tag = LEVEL_TO_NAME[level];
-  let start_idx = parseInt(parts[1]);
-  let end_idx = parseInt(parts[2]);
+function perform_dfs(current_node : TreeData, paragraph: string, all_tags : AnnotateBlendTag[], nodes_to_show : Set<string>) {
+  if(nodes_to_show.has(current_node.id)) {
+    // Extract the data
+    let parts = current_node.id.split("_");
+    let level = parseInt(parts[0]);
+    let tag = LEVEL_TO_NAME[level];
+    let start_idx = parseInt(parts[1]);
+    let end_idx = parseInt(parts[2]);
 
-  // Record this node
-  all_tags.push({
-    start: start_idx,
-    end: end_idx,
-    text: paragraph.substring(start_idx, end_idx),
-    tag: tag,
-    color: COLORS[tag]
-  });
+    // Record this node
+    all_tags.push({
+      start: start_idx,
+      end: end_idx,
+      text: paragraph.substring(start_idx, end_idx),
+      tag: tag,
+      color: COLORS[tag]
+    });
+  }
+  
 
   // Record the children
   if(current_node.children) {
     for(var node of current_node.children) {
-      perform_dfs(node, paragraph, all_tags);
+      perform_dfs(node, paragraph, all_tags, nodes_to_show);
     }
   }
 }
 
 export function StatefulBlend(props : StatefulBlendProps) {
   // Convert input to tags
+  let nodes_set : Set<string> = new Set<string>(props.nodes_to_show);
   let all_tags : AnnotateBlendTag[] = [];
   for(var data of props.tree_data) {
-    perform_dfs(data, props.formatted_text, all_tags);
+    perform_dfs(data, props.formatted_text, all_tags, nodes_set);
   }
 
   const tag = "strat_name";

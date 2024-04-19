@@ -3,7 +3,7 @@ import logo from './logo.svg';
 import './App.css';
 import example_data from './tree_example.json';
 import {StatefulBlendProps, StatefulBlend} from './TextVisualizer';
-import { Tree, TreeApi } from "react-arborist";
+import { NodeApi, Tree, TreeApi } from "react-arborist";
 import Node from './Node';
 import {Entity, Child, Result, TreeData} from './types';
 import { TextAnnotateBlend, AnnotateBlendTag } from "react-text-annotate-blend";
@@ -39,7 +39,7 @@ function formatForVisualization() : [string, TreeData[]] {
 
   let root : TreeData = {
     id : "root",
-    name : "",
+    name : "All entities",
     children : tree_entities
   };
 
@@ -119,9 +119,18 @@ function addInChild(current_node : TreeData, target_node: string, removed_nodes:
   
 }
 
+function recordNode(node: TreeData, nodes_set : Set<string>) {
+  nodes_set.add(node.id);
+  for(var child of node.children) {
+    recordNode(child, nodes_set);
+  }
+}
+
 function App() {
   let [current_text, tree_entities] : [string, TreeData[]] = formatForVisualization();
   let [current_tree, setTree] = React.useState(tree_entities);
+  let no_nodes : string[] = [];
+  let [nodes_to_show, setNodesToShow] = React.useState(no_nodes);
 
   // Processing update from the text visualization
   let process_update = (nodes: string[]) => {
@@ -234,11 +243,20 @@ function App() {
     setTree([new_root]);
   };
 
+  const onSelect = (nodes : NodeApi<TreeData>[]) => {
+    let nodes_to_show = new Set<string>();
+    for(var curr_node of nodes) {
+      recordNode(curr_node.data, nodes_to_show);
+    }
+
+    setNodesToShow(Array.from(nodes_to_show));
+  };
+
   return (
   <>
     <div style={{display:"grid",  gridTemplateColumns:"1fr 1fr"}}>
-      <Tree data={current_tree} ref={treeRef} onMove={onMove} />
-      <StatefulBlend formatted_text={current_text} tree_data={current_tree[0].children} update_nodes={process_update} />
+      <Tree data={current_tree} ref={treeRef} onMove={onMove} onDelete={onDelete} onSelect={onSelect} />
+      <StatefulBlend formatted_text={current_text} tree_data={current_tree[0].children} update_nodes={process_update} nodes_to_show={nodes_to_show} />
     </div>
   </>
   );
