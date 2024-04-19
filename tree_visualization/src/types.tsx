@@ -17,3 +17,9 @@ export interface Result {
     words: string[];
     strats?: Entity[];
 }
+
+export interface TreeData {
+    id: string;
+    name: string;
+    children : TreeData[];
+}

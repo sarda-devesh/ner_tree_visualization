@@ -1,35 +1,11 @@
 import React from "react";
 import { TextAnnotateBlend, AnnotateBlendTag } from "react-text-annotate-blend";
+import { TreeData } from "./types";
 
 /*
 Stateful example with blended tags allowed
 */
 
-const init: AnnotateBlendTag[] = [
-  {
-    start: 10,
-    end: 22,
-    text: "many stories",
-    tag: "tagC",
-    color: "#4b46cd",
-  },
-  {
-    start: 15,
-    end: 28,
-    text: "stories about",
-    tag: "tagB",
-    color: "#42f5f5",
-  },
-  {
-    start: 120,
-    end: 124,
-    text: "each",
-    tag: "tagC",
-    color: "#4b46cd",
-  },
-];
-
-const demoText = "There are many stories about the origins of cyclo-cross. One is that European road racers in the early 1900s would race each other to the next town over from them and that they were allowed to cut through farmers' fields or over fences, or take any other shortcuts, in order to make it to the next town first. This was sometimes called steeple chase as the only visible landmark in the next town was often the steeple.";
 
 type COLOR_TYPE = {
   [key: string]: string;
@@ -44,53 +20,89 @@ const COLORS: COLOR_TYPE = {
   lith_att: "#4b46cd",
 };
 
-export interface VisualizeEntity {
-  start_range: number;
-  end_range: number;
-  text: string;
-  tag: string;
+type NAME_TO_LEVEL_TYPE = {
+  [key: string] : number;
+  strat_name: number;
+  lithology: number;
+  lith_att: number;
+};
+
+const NAME_TO_LEVEL : NAME_TO_LEVEL_TYPE = {
+  strat_name: 0,
+  lithology: 1,
+  lith_att: 2,
+}
+
+type LEVEL_TO_NAME_TYPE = {
+  [key : number] : string;
+  0 : string;
+  1 : string;
+  2: string;
+}
+
+const LEVEL_TO_NAME : LEVEL_TO_NAME_TYPE = {
+  0 : "strat_name",
+  1: "lithology",
+  2: "lith_att"
 }
 
 export interface StatefulBlendProps {
   formatted_text: string;
-  entities_to_visualize: VisualizeEntity[];
+  tree_data: TreeData[];
+  update_nodes: (nodes: string[]) => void;
+};
+
+function perform_dfs(current_node : TreeData, paragraph: string, all_tags : AnnotateBlendTag[]) {
+  // Extract the data
+  let parts = current_node.id.split("_");
+  let level = parseInt(parts[0]);
+  let tag = LEVEL_TO_NAME[level];
+  let start_idx = parseInt(parts[1]);
+  let end_idx = parseInt(parts[2]);
+
+  // Record this node
+  all_tags.push({
+    start: start_idx,
+    end: end_idx,
+    text: paragraph.substring(start_idx, end_idx),
+    tag: tag,
+    color: COLORS[tag]
+  });
+
+  // Record the children
+  if(current_node.children) {
+    for(var node of current_node.children) {
+      perform_dfs(node, paragraph, all_tags);
+    }
+  }
 }
-
-
 
 export function StatefulBlend(props : StatefulBlendProps) {
   // Convert input to tags
   let all_tags : AnnotateBlendTag[] = [];
-  for(var entity of props.entities_to_visualize) {
-    all_tags.push({
-      start : entity.start_range,
-      end : entity.end_range,
-      text : entity.text,
-      tag : entity.tag,
-      color : COLORS[entity.tag]
-    });
+  for(var data of props.tree_data) {
+    perform_dfs(data, props.formatted_text, all_tags);
   }
-  console.log(all_tags);
 
-  const [tag, setTag] = React.useState("strat_name");
+  const tag = "strat_name";
+  const handleChange = (tagged_words: AnnotateBlendTag[]) => {
+    let nodes_to_keep : string[] = [];
+    for(var curr_word of tagged_words) {
+      // Get the word level
+      let word_level : string = "0";
+      if(curr_word.tag) {
+        word_level = "" + NAME_TO_LEVEL[curr_word.tag];
+      }
 
-  const handleChange = (value: AnnotateBlendTag[]) => {
-    console.log(value);
+      // Record the node
+      let node_id = word_level + "_" + curr_word.start.toString() + "_" + curr_word.end.toString();
+      nodes_to_keep.push(node_id);
+    }
+    props.update_nodes(nodes_to_keep);
   };
 
   return (
     <div style={{ padding: 20 }}>
-      <select style={{ margin: 20 }} onChange={(e) => setTag(e.target.value)}>
-        {Object.keys(COLORS).map((label) => (
-          <option key={label} value={label}>
-            {label}
-          </option>
-        ))}
-      </select>
-
-      <br></br>
-
-      <div>
         <TextAnnotateBlend
           style={{
             fontSize: "1.2rem",
@@ -104,12 +116,7 @@ export function StatefulBlend(props : StatefulBlendProps) {
             color: COLORS[tag],
           })}
         />
-      </div>
-
-      <h3>Current Stored Value</h3>
-      <div>
-        <pre>{JSON.stringify(all_tags, null, 2)}</pre>
-      </div>
+        
     </div>
   );
 }
