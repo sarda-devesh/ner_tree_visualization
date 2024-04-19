@@ -83,10 +83,47 @@ function perform_reset(node : TreeData, depth: number) {
   }
 }
 
+function removeNodes(current_node: TreeData, nodes_to_remove: Set<string>, removed_nodes : TreeData[]) {
+  let new_children : TreeData[] = [];
+  for(var curr_child of current_node.children) {
+    if(nodes_to_remove.has(curr_child.id)) {
+      // Record that we removed this node
+      removed_nodes.push(curr_child);
+    } else {
+      // Keep this child
+      new_children.push(curr_child);
+    }
+  }
+
+  // Process the children
+  for(var curr_new_child of new_children) {
+    removeNodes(curr_new_child, nodes_to_remove, removed_nodes);
+  }
+
+  // Update the children for this node
+  current_node.children = new_children;
+}
+
+function addInChild(current_node : TreeData, target_node: string, removed_nodes: TreeData[]) {
+  if(current_node.id.valueOf() == target_node.valueOf()) {
+    // Add in the children to the target node
+    for(var node_to_add of removed_nodes) {
+      current_node.children.push(node_to_add);
+    }
+  } else {
+    // This node is not the target node so its a child
+    for(var curr_child of current_node.children) {
+      addInChild(curr_child, target_node, removed_nodes);
+    }
+  }
+  
+}
+
 function App() {
   let [current_text, tree_entities] : [string, TreeData[]] = formatForVisualization();
   let [current_tree, setTree] = React.useState(tree_entities);
 
+  // Processing update from the text visualization
   let process_update = (nodes: string[]) => {
       let nodes_set = new Set<string>(nodes);
       let old_root = current_tree[0];
@@ -120,9 +157,87 @@ function App() {
       setTree([new_root]);
   };
 
+  // If the user rename the tree
+  const treeRef = useRef();
+  const onMove = ({ dragIds, parentId, index } : any) => {
+    // Cast the input data
+    let input_children_ids : string[] = dragIds;
+    let input_parent_id : string = parentId;
+    let input_index : number = index;
+
+    // Create the new root
+    let old_root = current_tree[0];
+    let new_root = JSON.parse(JSON.stringify(old_root));
+
+    // Remove the children from there location
+    let nodes_to_remove : Set<string> = new Set<string>(input_children_ids);
+    let removed_nodes : TreeData[] = [];
+    let updated_children: TreeData[] = [];
+    for(var root_child of new_root.children) {
+      if(nodes_to_remove.has(root_child.id)) {
+        // Don't record this is a root child
+        removed_nodes.push(root_child);
+      } else {
+        // Record it as a child
+        removeNodes(root_child, nodes_to_remove, removed_nodes);
+        updated_children.push(root_child);
+      }
+    }
+    new_root.children = updated_children;
+    
+    if(input_parent_id == "root") {
+      // Add in the children to the root
+      for(var node_to_add of removed_nodes) {
+        new_root.children.push(node_to_add);
+      }
+    } else {
+      // Add in to the target node
+      for(var root_child of new_root.children) {
+        addInChild(root_child, input_parent_id, removed_nodes);
+      }
+    }
+    
+    // Reset the level of all of nodes
+    for(var root_child of new_root.children) {
+      perform_reset(root_child, 0);
+    }
+    setTree([new_root]);
+  };
+
+  const onDelete = ({ ids } : any) => {
+    let delete_ids : string[] = ids;
+
+    // Create the new root
+    let old_root = current_tree[0];
+    let new_root = JSON.parse(JSON.stringify(old_root));
+    
+    // Remove the children from there location
+    let nodes_to_remove : Set<string> = new Set<string>(delete_ids);
+    let removed_nodes : TreeData[] = [];
+    let updated_children: TreeData[] = [];
+    for(var root_child of new_root.children) {
+      if(nodes_to_remove.has(root_child.id)) {
+        // Don't record this is a root child
+        removed_nodes.push(root_child);
+      } else {
+        // Record it as a child
+        removeNodes(root_child, nodes_to_remove, removed_nodes);
+        updated_children.push(root_child);
+      }
+    }
+    new_root.children = updated_children;
+
+    // Reset the level of all of nodes
+    for(var root_child of new_root.children) {
+      perform_reset(root_child, 0);
+    }
+    setTree([new_root]);
+  };
+
   return (
   <>
     <div style={{display:"grid",  gridTemplateColumns:"1fr 1fr"}}>
+      <Tree data={current_tree} ref={treeRef} onMove={onMove} />
       <StatefulBlend formatted_text={current_text} tree_data={current_tree[0].children} update_nodes={process_update} />
     </div>
   </>
