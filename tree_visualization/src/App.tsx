@@ -137,10 +137,13 @@ function App() {
       let nodes_set = new Set<string>(nodes);
       let old_root = current_tree[0];
       let new_root = JSON.parse(JSON.stringify(old_root));
+      console.log("Old root of", old_root);
       
       // Update the tree
+      console.log("Nodes to keep", nodes);
       update_tree(new_root, nodes_set);
-      
+      console.log("New root of", new_root);
+
       // Add the remaining children as 
       nodes_set.forEach((node) => {
         // Get the id details
@@ -255,7 +258,16 @@ function App() {
   return (
   <>
     <div style={{display:"grid",  gridTemplateColumns:"1fr 1fr"}}>
-      <Tree data={current_tree} ref={treeRef} onMove={onMove} onDelete={onDelete} onSelect={onSelect} />
+      <div>
+        <p>
+          Click on a entity to see its type as well as the type of its children. 
+          You can also drag and drop entities up and down the heirachy, thus changing their type.
+        </p>
+        <Tree data={current_tree} ref={treeRef} onMove={onMove} onDelete={onDelete} onSelect={onSelect}>
+          {Node}
+        </Tree> 
+      </div>
+      
       <StatefulBlend formatted_text={current_text} tree_data={current_tree[0].children} update_nodes={process_update} nodes_to_show={nodes_to_show} />
     </div>
   </>

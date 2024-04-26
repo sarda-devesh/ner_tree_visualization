@@ -1,50 +1,55 @@
 import { AiFillFolder, AiFillFile } from "react-icons/ai";
 import { MdArrowRight, MdArrowDropDown, MdEdit } from "react-icons/md";
 import { RxCross2 } from "react-icons/rx";
+import { NodeApi, Tree, TreeApi } from "react-arborist";
+import {Entity, Child, Result, TreeData} from './types';
+
+function isSelected(search_node : TreeData, tree_node: TreeData) {
+  if(search_node.id == tree_node.id) {
+    return true;
+  }
+
+  for(var child of tree_node.children) {
+    if(isSelected(search_node, child)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function isNodeSelected(node : NodeApi<TreeData>, tree: TreeApi<TreeData>) {
+  for(var selected_node of tree.selectedNodes) {
+    if(isSelected(node.data, selected_node.data)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+type COLOR_TYPE = {
+  [key: string]: string;
+  0: string;
+  1: string;
+  2: string;
+};
+
+const COLORS: COLOR_TYPE = {
+  0: "rgb(179, 245, 66)",
+  1: "#42f5f5",
+  2: "#4b46cd",
+};
 
 const Node = ({ node, style, dragHandle, tree } : any) => {
-  const CustomIcon = node.data.icon;
-  const iconColor = node.data.iconColor;
-
-  // console.log(node, tree);
+  let selected : boolean = isNodeSelected(node, tree);
+  let node_level : string = node.data.id.split("_")[0];
+  let nameStyle = selected ? { backgroundColor: COLORS[node_level] } : {};
+  
   return (
-    <div
-      className={`node-container ${node.state.isSelected ? "isSelected" : ""}`}
-      style={style}
-      ref={dragHandle}
-    >
-
-      <div
-        className="node-content"
-        onClick={() => node.isInternal && node.toggle()}
-      >
-        {node.isLeaf ? "🍁" : "🗀"}
-        <span className="node-text">
-          {node.isEditing ? (
-            <input
-              type="text"
-              defaultValue={node.data.name}
-              onFocus={(e) => e.currentTarget.select()}
-              onBlur={() => node.reset()}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") node.reset();
-                if (e.key === "Enter") node.submit(e.currentTarget.value);
-              }}
-              autoFocus
-            />
-          ) : (
-            <span>{node.data.name}</span>
-          )}
-          
-          <button onClick={() => node.edit()} title="Rename...">
-            <MdEdit />
-          </button>
-          <button onClick={() => tree.delete(node.id)} title="Delete">
-            <RxCross2 />
-          </button>
-          
-        </span>
-      </div>
+    <div style={{ ...style, ...nameStyle }} ref={dragHandle}>
+      {node.isLeaf ? "🍁" : "🗀"}
+      {node.data.name}
     </div>
   );
 };
